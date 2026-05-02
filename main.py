@@ -1,30 +1,26 @@
 import numpy as np
 
 def validar_datos(matriz, vector, dias):
-
+    # Valida que los datos de entrada cumplan con los rangos y sumas de probabilidad
     if not (60 <= dias <= 90):
-        print("\nERROR: Número de días inválido.")
+        print("\nERROR: Número de días inválido (Debe ser entre 60 y 90).")
         return False
     
     for i, fila in enumerate(matriz):
         if not np.isclose(np.sum(fila), 1.0):
-            print(f"\nERROR: La fila {i+1} de la matriz no suma 1.")
+            print(f"\nERROR: La fila {i+1} de la matriz no suma 100%.")
             return False
             
     if not np.isclose(np.sum(vector), 1.0):
-        print("\nERROR: El vector de probabilidad inicial debe sumar 1.")
+        print("\nERROR: El vector de probabilidad inicial debe sumar 100%.")
         return False
         
     return True
 
 def generar_matriz_desde_historico(datos, n_estados=4):
-    """
-    Calcula la matriz de transición a partir de una secuencia de estados históricos.
-    Aplica el concepto de frecuencias relativas para obtener probabilidades.
-    """
+    # Calcula la matriz de probabilidad basada en cuantas veces cambió el clima en el pasado
     matriz_conteos = np.zeros((n_estados, n_estados))
     
-    # Contar transiciones entre estados consecutivos
     for i in range(len(datos) - 1):
         estado_actual = datos[i] - 1
         estado_siguiente = datos[i+1] - 1
@@ -38,21 +34,40 @@ def generar_matriz_desde_historico(datos, n_estados=4):
         if suma_fila > 0:
             matriz_prob[i] = matriz_conteos[i] / suma_fila
         else:
-            # Si un estado no tiene transiciones registradas, se asigna equiprobabilidad
             matriz_prob[i] = np.full(n_estados, 1.0 / n_estados)
             
     return matriz_prob
 
-def agromarkov():
-    print("========================================")
-    print("           SISTEMA AGROMARKOV           ")
-    print("========================================")
+def mostrar_matriz(matriz, estados):
+    # Muestra la matriz de transición usando porcentajes para facilitar la lectura
+    print("\n[MATRIZ DE TRANSICIÓN P - PROBABILIDADES DE CAMBIO]")
+    header = "          " + "  ".join([f"{est[:10]:>10}" for est in estados])
+    print(header)
+    for i, fila in enumerate(matriz):
+        row_str = f"{estados[i][:10]:>10} " + "  ".join([f"{val*100:9.1f}%" for val in fila])
+        print(row_str)
+
+def obtener_recomendacion(estado):
+    # Retorna un consejo agrícola basado en el clima pronosticado
+    recomendaciones = {
+        "Soleado": "Óptimo para riego intensivo y cosecha. Proteger cultivos sensibles al calor.",
+        "Nublado": "Baja evapotranspiración. Reducir riego y monitorear posible presencia de hongos.",
+        "Parcialmente Nublado": "Condiciones moderadas. Ideal para aplicación de fertilizantes foliares.",
+        "Parcialmente Soleado": "Buen clima para mantenimiento general y control de plagas."
+    }
+    return recomendaciones.get(estado, "Sin recomendación específica.")
+
+def ejecutar_agromarkov():
+    # Orquestador principal del flujo del programa
+    print("\n" + "="*50)
+    print("           SISTEMA DE APOYO AGROMARKOV          ")
+    print("="*50)
     
     estados = ["Soleado", "Nublado", "Parcialmente Nublado", "Parcialmente Soleado"]
     
     print("\n[CONFIGURACIÓN DEL MODELO]")
-    print("1. Usar matriz de transición por defecto")
-    print("2. Generar matriz a partir de datos históricos (Recomendado)")
+    print("1. Usar matriz estándar (Predefinida)")
+    print("2. Generar matriz desde históricos (Datos reales)")
     
     try:
         opcion_modelo = int(input("\nSeleccione una opción: "))
@@ -61,75 +76,75 @@ def agromarkov():
         return
 
     if opcion_modelo == 2:
-        print("\nIngrese la secuencia de climas de los últimos días usando números:")
-        print("1: Soleado, 2: Nublado, 3: Parcialmente Nublado, 4: Parcialmente Soleado")
-        print("Ejemplo: 1,2,1,1,3,4,2,1")
+        print("\nIngrese la secuencia de climas pasados (1:Sol, 2:Nub, 3:P.Nub, 4:P.Sol):")
+        print("Ejemplo: 1,1,2,3,1,4,2,1")
         entrada = input("Secuencia: ")
         try:
             datos_historicos = [int(x.strip()) for x in entrada.split(",")]
             if len(datos_historicos) < 2:
-                print("Error: Se necesitan al menos 2 datos para calcular transiciones.")
+                print("Error: Se necesitan más datos.")
                 return
             matriz_transicion = generar_matriz_desde_historico(datos_historicos)
-            print("\n✅ Matriz de transición generada con éxito a partir de frecuencias.")
+            print("\n Matriz calculada exitosamente.")
         except ValueError:
-            print("Error: Formato de datos inválido.")
+            print("Error: Formato incorrecto.")
             return
     else:
-        # MATRIZ DE TRANSICIÓN POR DEFECTO (ESTOCÁSTICA)
         matriz_transicion = np.array([
-            [0.6, 0.2, 0.1, 0.1],  # Soleado
-            [0.3, 0.4, 0.2, 0.1],  # Nublado
-            [0.2, 0.2, 0.4, 0.2],  # Parcialmente Nublado
-            [0.2, 0.1, 0.2, 0.5]   # Parcialmente Soleado
+            [0.6, 0.2, 0.1, 0.1],
+            [0.3, 0.4, 0.2, 0.1],
+            [0.2, 0.2, 0.4, 0.2],
+            [0.2, 0.1, 0.2, 0.5]
         ])
-        print("\nℹ️ Usando matriz de transición estándar.")
+        print("\n Usando matriz estándar.")
+
+    mostrar_matriz(matriz_transicion, estados)
 
     try:
-        dias_n = int(input("\nIngrese la cantidad de días actuales acumulados (60-90): "))
+        dias_n = int(input("\nIngrese cantidad de días acumulados (60-90): "))
     except ValueError:
-        print("Error: Debe ingresar un número entero válido.")
+        print("Error: Ingrese un número.")
         return
 
-    print("\n¿Cuál es el estado del clima el día de HOY?")
+    print("\n¿Clima de HOY?")
     for i, estado in enumerate(estados):
         print(f"{i + 1}. {estado}")
         
     try:
-        opcion_clima = int(input("Elija una opción (1-4): "))
-        if opcion_clima < 1 or opcion_clima > 4:
-            print("Error: Opción inválida.")
+        opcion_clima = int(input("Elija (1-4): "))
+        if not (1 <= opcion_clima <= 4):
             return
     except ValueError:
-        print("Error: Debe ingresar un número entero.")
         return
 
     vector_inicial = np.zeros(4)
     vector_inicial[opcion_clima - 1] = 1.0
 
-    # Predicción
     if validar_datos(matriz_transicion, vector_inicial, dias_n):
-        print("-----------------------------------------------------------")
-        print(f" PREDICCIÓN DE ESTADOS FUTUROS (A PARTIR DEL DÍA {dias_n})")
-        print("   Fórmula utilizada: Vn = V0 * P^n")
-        print("-----------------------------------------------------------")
+        print("\n" + "-"*60)
+        print(f" PREDICCIÓN BASADA EN EL MODELO MARKOVIANO (DÍA {dias_n})")
+        print(" Fórmula: Vn = V0 * P^n")
+        print("-"*60)
         
-        # Realizamos las predicciones para los días n+1, n+2, n+3, n+4
         for i in range(1, 5):
-            # Aplicación estricta de la fórmula matemática: Vn = V0 * P^i
-            # P^i se calcula usando la potencia de la matriz de transición
             matriz_potencia = np.linalg.matrix_power(matriz_transicion, i)
             vector_prediccion = np.dot(vector_inicial, matriz_potencia)
             
             dia_futuro = dias_n + i
             indice_max = np.argmax(vector_prediccion)
+            clima_predicho = estados[indice_max]
+            prob_max = vector_prediccion[indice_max] * 100
             
-            print(f"\n▶ Día {dia_futuro}: PRONÓSTICO -> {estados[indice_max]} ({vector_prediccion[indice_max]*100:.2f}%)")
-
-            for j, est in enumerate(estados):
-                print(f"   - {est}: {vector_prediccion[j]*100:.2f}%")
+            print(f"\n▶ Día {dia_futuro}: {clima_predicho.upper()} ({prob_max:.1f}%)")
+            print(f"RECOMENDACIÓN: {obtener_recomendacion(clima_predicho)}")
+            
+            prob_str = "   Detalle: " + " | ".join([f"{estados[j]}: {vector_prediccion[j]*100:.1f}%" for j in range(4)])
+            print(prob_str)
         
-        print("\n" + "-----------------------------------------------------------")
+        print("\n" + "-"*60)
 
 if __name__ == "__main__":
-    agromarkov()
+    while True:
+        ejecutar_agromarkov()
+        if input("\n¿Otra predicción? (s/n): ").lower() != 's':
+            break

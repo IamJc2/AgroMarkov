@@ -111,20 +111,23 @@ def agromarkov():
     if validar_datos(matriz_transicion, vector_inicial, dias_n):
         print("-----------------------------------------------------------")
         print(f" PREDICCIÓN DE ESTADOS FUTUROS (A PARTIR DEL DÍA {dias_n})")
+        print("   Fórmula utilizada: Vn = V0 * P^n")
         print("-----------------------------------------------------------")
         
-        vector_actual = vector_inicial
-        
+        # Realizamos las predicciones para los días n+1, n+2, n+3, n+4
         for i in range(1, 5):
-            vector_actual = np.dot(vector_actual, matriz_transicion)
+            # Aplicación estricta de la fórmula matemática: Vn = V0 * P^i
+            # P^i se calcula usando la potencia de la matriz de transición
+            matriz_potencia = np.linalg.matrix_power(matriz_transicion, i)
+            vector_prediccion = np.dot(vector_inicial, matriz_potencia)
             
             dia_futuro = dias_n + i
-            indice_max = np.argmax(vector_actual)
+            indice_max = np.argmax(vector_prediccion)
             
-            print(f"\n▶ Día {dia_futuro}: PRONÓSTICO -> {estados[indice_max]} ({vector_actual[indice_max]*100:.2f}%)")
+            print(f"\n▶ Día {dia_futuro}: PRONÓSTICO -> {estados[indice_max]} ({vector_prediccion[indice_max]*100:.2f}%)")
 
             for j, est in enumerate(estados):
-                print(f"   - {est}: {vector_actual[j]*100:.2f}%")
+                print(f"   - {est}: {vector_prediccion[j]*100:.2f}%")
         
         print("\n" + "-----------------------------------------------------------")
 

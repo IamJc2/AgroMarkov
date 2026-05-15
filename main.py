@@ -20,7 +20,7 @@ def validar_datos(matriz, vector, dias):
 def generar_matriz_desde_historico(datos, n_estados=4):
     # Calcula la matriz de probabilidad basada en cuantas veces cambió el clima en el pasado
     matriz_conteos = np.zeros((n_estados, n_estados))
-    
+    # Bucle para contar las transiciones entre estados pasados
     for i in range(len(datos) - 1):
         estado_actual = datos[i] - 1
         estado_siguiente = datos[i+1] - 1
@@ -28,7 +28,7 @@ def generar_matriz_desde_historico(datos, n_estados=4):
             matriz_conteos[estado_actual][estado_siguiente] += 1
             
     matriz_prob = np.zeros((n_estados, n_estados))
-    
+    # Cálculo de la probabilidad (Frecuencia relativa)
     for i in range(n_estados):
         suma_fila = np.sum(matriz_conteos[i])
         if suma_fila > 0:
@@ -56,6 +56,22 @@ def obtener_recomendacion(estado):
         "Parcialmente Soleado": "Buen clima para mantenimiento general y control de plagas."
     }
     return recomendaciones.get(estado, "Sin recomendación específica.")
+
+def calcular_vector_estacionario(matriz):
+    # Calcula el vector estacionario resolviendo (P^T - I)pi = 0 con sum(pi) = 1
+    # a probabilidad de cada clima a largo plazo.
+    n = matriz.shape[0]
+
+    a = (matriz.T - np.eye(n))
+
+    a[-1] = np.ones(n)
+    b = np.zeros(n)
+    b[-1] = 1
+    try:
+        vector_estacionario = np.linalg.solve(a, b)
+        return vector_estacionario
+    except np.linalg.LinAlgError:
+        return None
 
 def ejecutar_agromarkov():
     print("\n" + "="*50)
@@ -144,12 +160,15 @@ def ejecutar_agromarkov():
         print(f" PREDICCIÓN BASADA EN EL MODELO MARKOVIANO (A PARTIR DEL DÍA {dias_n})")
         print(" Fórmula: Vn = V0 * P^n")
         print("-"*60)
-        
+        # Predicción final
         for i in range(1, 5):
+            # Elevar la matriz de transición a la potencia 'i'
             matriz_potencia = np.linalg.matrix_power(matriz_transicion, i)
+            # Multiplicar el vector inicial (V0) por la matriz elevada
             vector_prediccion = np.dot(vector_inicial, matriz_potencia)
             
             dia_futuro = dias_n + i
+            # Encontrar el clima con mayor probabilidad
             indice_max = np.argmax(vector_prediccion)
             clima_predicho = estados[indice_max]
             prob_max = vector_prediccion[indice_max] * 100
@@ -159,6 +178,20 @@ def ejecutar_agromarkov():
             
             prob_str = "Detalle: " + " | ".join([f"{estados[j]}: {vector_prediccion[j]*100:.1f}%" for j in range(4)])
             print(prob_str)
+        
+        # Mostrar Vector Estacionario (Tendencia a largo plazo)
+        print("\n" + "."*60)
+        print(" ANÁLISIS DE TENDENCIA CLIMÁTICA A LARGO PLAZO")
+        print(" (Vector Estacionario - Equilibrio del Sistema)")
+        print("."*60)
+        v_est = calcular_vector_estacionario(matriz_transicion)
+        if v_est is not None:
+            est_str = " | ".join([f"{estados[j]}: {v_est[j]*100:.1f}%" for j in range(4)])
+            print(est_str)
+            indice_predominante = np.argmax(v_est)
+            print(f"\nTendencia predominante: {estados[indice_predominante].upper()}")
+        else:
+            print("No se pudo calcular el estado estable para esta matriz.")
         
         print("\n" + "-"*60)
 

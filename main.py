@@ -52,7 +52,7 @@ def mostrar_matriz(matriz, estados):
         print(row_str)
 
 def obtener_recomendacion(estado):
-    # Retorna un consejo agrícola basado en el clima pronosticado
+    # Retorna un consejo
     recomendaciones = {
         "Soleado": "Óptimo para riego intensivo y cosecha. Proteger cultivos sensibles al calor.",
         "Nublado": "Baja evapotranspiración. Reducir riego y monitorear posible presencia de hongos.",
@@ -60,6 +60,20 @@ def obtener_recomendacion(estado):
         "Parcialmente Soleado": "Buen clima para mantenimiento general y control de plagas."
     }
     return recomendaciones.get(estado, "Sin recomendación específica.")
+
+def calcular_vector_estacionario(matriz):
+    # calculo del vector estacionario 
+    # probabilidad de cada clima a largo plazo.
+    n = matriz.shape[0]
+    a = (matriz.T - np.eye(n))
+    a[-1] = np.ones(n)
+    b = np.zeros(n)
+    b[-1] = 1
+    try:
+        vector_estacionario = np.linalg.solve(a, b)
+        return vector_estacionario
+    except np.linalg.LinAlgError:
+        return None
 
 def graficar_evolucion(matriz, vector_inicial, estados, dias_proyeccion=15):
     # Genera una gráfica
@@ -194,6 +208,19 @@ def ejecutar_agromarkov():
             
             prob_str = "Detalle: " + " | ".join([f"{estados[j]}: {vector_prediccion[j]*100:.1f}%" for j in range(4)])
             print(prob_str)
+        
+        # Mostrar Vector Estacionario (Tendencia a largo plazo)
+        print("\n" + "."*60)
+        print(" ANÁLISIS DE TENDENCIA CLIMÁTICA A LARGO PLAZO")
+        print("."*60)
+        v_est = calcular_vector_estacionario(matriz_transicion)
+        if v_est is not None:
+            est_str = " | ".join([f"{estados[j]}: {v_est[j]*100:.1f}%" for j in range(4)])
+            print(est_str)
+            indice_predominante = np.argmax(v_est)
+            print(f"\nTendencia predominante: {estados[indice_predominante].upper()}")
+        else:
+            print("No se pudo calcular para esta matriz.")
         
         print("\n" + "-"*60)
         

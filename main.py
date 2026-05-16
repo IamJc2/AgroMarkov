@@ -1,4 +1,8 @@
 import numpy as np
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    plt = None
 
 def validar_datos(matriz, vector, dias):
     # Valida que los datos de entrada
@@ -57,21 +61,33 @@ def obtener_recomendacion(estado):
     }
     return recomendaciones.get(estado, "Sin recomendación específica.")
 
-def calcular_vector_estacionario(matriz):
-    # Calcula el vector estacionario resolviendo (P^T - I)pi = 0 con sum(pi) = 1
-    # a probabilidad de cada clima a largo plazo.
-    n = matriz.shape[0]
+def graficar_evolucion(matriz, vector_inicial, estados, dias_proyeccion=15):
+    # Genera una gráfica
+    if plt is None:
+        print("\n[AVISO] Matplotlib no está instalado.")
+        return
 
-    a = (matriz.T - np.eye(n))
-
-    a[-1] = np.ones(n)
-    b = np.zeros(n)
-    b[-1] = 1
-    try:
-        vector_estacionario = np.linalg.solve(a, b)
-        return vector_estacionario
-    except np.linalg.LinAlgError:
-        return None
+    historial_probs = []
+    for i in range(dias_proyeccion + 1):
+        matriz_potencia = np.linalg.matrix_power(matriz, i)
+        vector_n = np.dot(vector_inicial, matriz_potencia)
+        historial_probs.append(vector_n)
+    
+    historial_probs = np.array(historial_probs)
+    
+    plt.figure(figsize=(10, 6))
+    for j in range(len(estados)):
+        plt.plot(range(dias_proyeccion + 1), historial_probs[:, j] * 100, marker='o', label=estados[j])
+    
+    plt.title("Evolución de Probabilidades Climáticas (Cadenas de Markov)")
+    plt.xlabel("Días desde el clima inicial")
+    plt.ylabel("Probabilidad (%)")
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend()
+    plt.ylim(0, 105)
+    
+    print("\n[SISTEMA] Generando gráfico de evolución... (Cierre la ventana para continuar)")
+    plt.show()
 
 def ejecutar_agromarkov():
     print("\n" + "="*50)
@@ -179,21 +195,12 @@ def ejecutar_agromarkov():
             prob_str = "Detalle: " + " | ".join([f"{estados[j]}: {vector_prediccion[j]*100:.1f}%" for j in range(4)])
             print(prob_str)
         
-        # Mostrar Vector Estacionario (Tendencia a largo plazo)
-        print("\n" + "."*60)
-        print(" ANÁLISIS DE TENDENCIA CLIMÁTICA A LARGO PLAZO")
-        print(" (Vector Estacionario - Equilibrio del Sistema)")
-        print("."*60)
-        v_est = calcular_vector_estacionario(matriz_transicion)
-        if v_est is not None:
-            est_str = " | ".join([f"{estados[j]}: {v_est[j]*100:.1f}%" for j in range(4)])
-            print(est_str)
-            indice_predominante = np.argmax(v_est)
-            print(f"\nTendencia predominante: {estados[indice_predominante].upper()}")
-        else:
-            print("No se pudo calcular el estado estable para esta matriz.")
-        
         print("\n" + "-"*60)
+        
+        # Opción para graficar
+        ver_grafica = input("¿Desea ver la gráfica de evolución de probabilidades? (s/n): ").lower()
+        if ver_grafica == 's':
+            graficar_evolucion(matriz_transicion, vector_inicial, estados)
 
 if __name__ == "__main__":
     while True:
